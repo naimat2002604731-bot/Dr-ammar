@@ -1,0 +1,8 @@
+{
+  "name": "دكتور عمار",
+  "description": "تطبيق دكتور عمار لإدارة وجدولة الأدوية مع استشارات طبية مدعومة بالذكاء الاصطناعي ومزامنة الحساب عبر الأجهزة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
