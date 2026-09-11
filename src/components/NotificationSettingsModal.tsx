@@ -40,6 +40,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 }) => {
   const [testing, setTesting] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [testNotificationFeedback, setTestNotificationFeedback] = useState<string | null>(null);
 
   const handleRequestPermission = async () => {
     setRequesting(true);
@@ -67,16 +68,19 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
     };
 
     const content = getDoseNotificationContent(testMed as Medication, 'الآن');
-    const sent = sendBrowserNotification(content.title, {
+    sendBrowserNotification(content.title, {
       body: content.body,
       tag: 'dr-ammar-test',
       onClick: () => {
-        alert('تم النقر على إشعار التذكير بنجاح!');
+        setTestNotificationFeedback('تم النقر على إشعار التذكير بنجاح! يعمل نظام التنبيهات بامتياز.');
+        setTimeout(() => setTestNotificationFeedback(null), 4000);
       },
     });
 
     // Also trigger in-app test callback
     onTriggerTestNotification();
+    setTestNotificationFeedback('تم إرسال تنبيه تجريبي مع نغمة التنبيه الطبية والاهتزاز!');
+    setTimeout(() => setTestNotificationFeedback(null), 4000);
 
     setTimeout(() => {
       setTesting(false);
@@ -202,6 +206,13 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 سماع النغمة فقط
               </button>
             </div>
+
+            {testNotificationFeedback && (
+              <div className="mt-2.5 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-fadeIn font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{testNotificationFeedback}</span>
+              </div>
+            )}
           </div>
 
           {/* Scheduled Times Summary */}

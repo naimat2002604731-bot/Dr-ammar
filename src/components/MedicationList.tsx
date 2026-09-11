@@ -26,6 +26,18 @@ interface MedicationListProps {
   onEditMed: (med: Medication) => void;
   onDeleteMed: (medId: string) => Promise<void>;
   onConsultMed: (med: Medication) => void;
+  onQuickRefill?: (medId: string, count: number) => Promise<void>;
+}
+
+function normalizeArabic(text: string): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '')
+    .trim();
 }
 
 export const MedicationList: React.FC<MedicationListProps> = ({
@@ -34,16 +46,20 @@ export const MedicationList: React.FC<MedicationListProps> = ({
   onEditMed,
   onDeleteMed,
   onConsultMed,
+  onQuickRefill,
 }) => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'chronic' | 'temporary' | 'low_stock'>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [refillingId, setRefillingId] = useState<string | null>(null);
 
   const filtered = medications.filter((m) => {
+    const cleanSearch = normalizeArabic(search);
     const matchesSearch =
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      (m.genericName && m.genericName.toLowerCase().includes(search.toLowerCase())) ||
-      (m.notes && m.notes.toLowerCase().includes(search.toLowerCase()));
+      !cleanSearch ||
+      normalizeArabic(m.name).includes(cleanSearch) ||
+      (m.genericName && normalizeArabic(m.genericName).includes(cleanSearch)) ||
+      (m.notes && normalizeArabic(m.notes).includes(cleanSearch));
 
     if (!matchesSearch) return false;
 
@@ -331,15 +347,35 @@ export const MedicationList: React.FC<MedicationListProps> = ({
                     )}
 
                     {typeof med.remainingPills === 'number' && (
-                      <span
-                        className={`text-[11px] px-2.5 py-1 rounded-lg border font-semibold shrink-0 ${
-                          med.remainingPills <= 5
-                            ? 'bg-amber-50 text-amber-800 border-amber-300'
-                            : 'bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        الكمية المتبقية: {med.remainingPills}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border font-semibold ${
+                            med.remainingPills <= 5
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          الكمية المتبقية: {med.remainingPills}
+                        </span>
+
+                        {onQuickRefill && (
+                          <button
+                            onClick={async () => {
+                              setRefillingId(med.id);
+                              try {
+                                await onQuickRefill(med.id, 30);
+                              } finally {
+                                setRefillingId(null);
+                              }
+                            }}
+                            disabled={refillingId === med.id}
+                            title="إعادة تعبئة +30 حبة في العبوة"
+                            className="text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-1 rounded-lg font-bold transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            {refillingId === med.id ? 'جاري الإضافة...' : '+30 حبة'}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

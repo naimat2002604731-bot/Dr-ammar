@@ -26,6 +26,7 @@ export const AdherenceHistory: React.FC<AdherenceHistoryProps> = ({
   doseLogs,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'taken' | 'skipped'>('all');
+  const [copiedReport, setCopiedReport] = useState(false);
 
   // Calculate past 7 days stats
   const past7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -52,6 +53,33 @@ export const AdherenceHistory: React.FC<AdherenceHistoryProps> = ({
   const totalTaken = doseLogs.filter((l) => l.status === 'taken').length;
   const overallRate = totalLogsCount > 0 ? Math.round((totalTaken / totalLogsCount) * 100) : 100;
 
+  // Generate Doctor's Clinical Adherence Report
+  const handleCopyReport = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const medsListStr = medications.map((m, idx) => 
+      `${idx + 1}. ${m.name} (${m.dosage}) - ${m.times.join(', ')} - ${m.mealTiming === 'before_meal' ? 'قبل الأكل' : 'بعد الأكل'}`
+    ).join('\n');
+
+    const reportText = `📋 تقرير الالتزام الدوائي لمراجع عيادة دكتور عمار
+----------------------------------------
+المريض: ${user?.displayName || user?.username || 'غير محدد'}
+تاريخ استخراج التقرير: ${today}
+معدل الالتزام الكلي: ${overallRate}%
+إجمالي الجرعات المسجلة: ${totalLogsCount} (المأخوذة: ${totalTaken} | المتخطاة: ${totalLogsCount - totalTaken})
+الأيام الملتزم بها خلال الأسبوع الأخير: ${past7Days.filter((d) => d.percent >= 80).length} من 7 أيام
+
+قائمة الأدوية الموصوفة (${medications.length}):
+${medsListStr || 'لا توجد أدوية مسجلة'}
+
+ملاحظة: هذا التقرير تم استخراجه آلياً لمساعدة الطبيب المعالج في تقييم مدى انتظام المريض على الخطة العلاجية.`;
+
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setCopiedReport(true);
+      setTimeout(() => setCopiedReport(false), 2500);
+    } catch (_) {}
+  };
+
   // Filter logs list
   const filteredLogs = [...doseLogs]
     .filter((l) => (filterStatus === 'all' ? true : l.status === filterStatus))
@@ -64,6 +92,40 @@ export const AdherenceHistory: React.FC<AdherenceHistoryProps> = ({
 
   return (
     <div className="space-y-4 animate-fadeIn pb-24">
+      {/* Top Clinical Report Action */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-3xl p-4 flex items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 font-['Cairo']">
+              تقرير الالتزام للطبيب المعالج
+            </h3>
+            <p className="text-xs text-slate-600">
+              ملخص دقيق لنسبة التزامك وأدويتك الحالية لمشاركتها مع طبيبك أثناء المراجعة
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleCopyReport}
+          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-2xl transition-all shadow-md shadow-blue-200 cursor-pointer flex items-center gap-1.5 shrink-0"
+        >
+          {copiedReport ? (
+            <>
+              <Check className="w-4 h-4 text-emerald-200" />
+              <span>تم النسخ بنجاح!</span>
+            </>
+          ) : (
+            <>
+              <FileText className="w-4 h-4" />
+              <span>نسخ التقرير الطبي</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Adherence Overview Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">

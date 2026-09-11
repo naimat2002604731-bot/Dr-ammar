@@ -104,6 +104,15 @@ export const DoctorAmmarChat: React.FC<DoctorAmmarChatProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Speech cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   // Text to Speech in Arabic
   const handleSpeak = (id: string, text: string) => {
     if (!('speechSynthesis' in window)) return;
@@ -120,11 +129,65 @@ export const DoctorAmmarChat: React.FC<DoctorAmmarChatProps> = ({
     utterance.lang = 'ar-SA';
     utterance.rate = 0.95;
 
+    // Prefer native Arabic voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const arabicVoice = voices.find((v) => v.lang.startsWith('ar'));
+    if (arabicVoice) {
+      utterance.voice = arabicVoice;
+    }
+
     utterance.onend = () => setSpeakingMsgId(null);
     utterance.onerror = () => setSpeakingMsgId(null);
 
     setSpeakingMsgId(id);
     window.speechSynthesis.speak(utterance);
+  };
+
+  // Helper to render doctor formatted text (handling **bold** and bullet lists)
+  const renderMessageContent = (content: string, isDoctorMessage: boolean) => {
+    if (!isDoctorMessage) {
+      return <span>{content}</span>;
+    }
+    const lines = content.split('\n');
+    return (
+      <div className="space-y-1">
+        {lines.map((line, lIdx) => {
+          const isBullet = /^[*-]\s+/.test(line);
+          const cleanLine = isBullet ? line.replace(/^[*-]\s+/, '') : line;
+          const parts = cleanLine.split(/(\*\*[^*]+\*\*)/g);
+
+          const formattedLine = (
+            <span key={lIdx}>
+              {parts.map((part, pIdx) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                  return (
+                    <strong key={pIdx} className="font-bold text-slate-900">
+                      {part.slice(2, -2)}
+                    </strong>
+                  );
+                }
+                return part;
+              })}
+            </span>
+          );
+
+          if (isBullet) {
+            return (
+              <div key={lIdx} className="flex items-start gap-2 pr-1 my-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 shrink-0" />
+                <span className="flex-1">{formattedLine}</span>
+              </div>
+            );
+          }
+
+          return (
+            <div key={lIdx} className={line.trim() === '' ? 'h-2' : ''}>
+              {formattedLine}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -277,11 +340,11 @@ export const DoctorAmmarChat: React.FC<DoctorAmmarChatProps> = ({
 
                 {/* Message text with clear formatting */}
                 <div
-                  className={`whitespace-pre-line leading-relaxed font-normal ${
+                  className={`leading-relaxed font-normal ${
                     isDoctor ? 'text-slate-800' : 'text-slate-800'
                   }`}
                 >
-                  {msg.text}
+                  {renderMessageContent(msg.text, isDoctor)}
                 </div>
 
                 {/* Action footer for doctor message */}

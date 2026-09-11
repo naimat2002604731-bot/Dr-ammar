@@ -26,6 +26,7 @@ interface TodayScheduleProps {
   onOpenAddMed: () => void;
   onOpenAudit: () => void;
   onOpenNotifications?: () => void;
+  onQuickRefill?: (medId: string, count: number) => Promise<void>;
 }
 
 export const TodaySchedule: React.FC<TodayScheduleProps> = ({
@@ -34,12 +35,14 @@ export const TodaySchedule: React.FC<TodayScheduleProps> = ({
   onLogDose,
   onOpenAddMed,
   onOpenNotifications,
+  onQuickRefill,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Long-press and Quick Context Menu state
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null);
   const [pressingKey, setPressingKey] = useState<string | null>(null);
+  const [refillingId, setRefillingId] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -395,9 +398,29 @@ export const TodaySchedule: React.FC<TodayScheduleProps> = ({
 
                                 {/* Remaining pills alert if low */}
                                 {typeof med.remainingPills === 'number' && med.remainingPills <= 5 && (
-                                  <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                                    <AlertTriangle className="w-3 h-3 text-amber-600" />
-                                    متبقي {med.remainingPills} فقط في العبوة (يرجى إعادة الشراء)
+                                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                                    <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                      <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                      متبقي {med.remainingPills} فقط في العبوة
+                                    </div>
+                                    {onQuickRefill && (
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          setRefillingId(med.id);
+                                          try {
+                                            await onQuickRefill(med.id, 30);
+                                          } finally {
+                                            setRefillingId(null);
+                                          }
+                                        }}
+                                        disabled={refillingId === med.id}
+                                        className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                                        title="إضافة 30 حبة للعبوة"
+                                      >
+                                        {refillingId === med.id ? 'جاري الإضافة...' : '+30 حبة'}
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>

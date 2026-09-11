@@ -236,10 +236,11 @@ export default function App() {
       return;
     }
     setIsSyncing(true);
+    const targetId = editingMedication?.id || medData.id;
     try {
-      if (editingMedication) {
-        // Update
-        const res = await fetch(`/api/medications/${user.username}/${editingMedication.id}`, {
+      if (targetId) {
+        // Update existing
+        const res = await fetch(`/api/medications/${user.username}/${targetId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(medData),
@@ -247,7 +248,7 @@ export default function App() {
         const data = await res.json();
         if (data.medication) {
           setMedications((prev) => {
-            const next = prev.map((m) => (m.id === editingMedication.id ? data.medication : m));
+            const next = prev.map((m) => (m.id === targetId ? data.medication : m));
             saveLocalMirror(user.username, { profile: user, medications: next, doseLogs, chatHistory });
             return next;
           });
@@ -275,6 +276,14 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  // Quick refill pill stock
+  const handleQuickRefill = async (medId: string, count: number) => {
+    const med = medications.find((m) => m.id === medId);
+    if (!med) return;
+    const current = med.remainingPills ?? 0;
+    await handleSaveMedication({ id: medId, remainingPills: current + count });
   };
 
   // Delete Medication (Optimistic 0ms update + background sync)
@@ -549,6 +558,7 @@ export default function App() {
                   medications={medications}
                   doseLogs={doseLogs}
                   onLogDose={handleLogDose}
+                  onQuickRefill={handleQuickRefill}
                   onOpenAddMed={() => {
                     setEditingMedication(null);
                     setIsAddMedOpen(true);
@@ -571,6 +581,7 @@ export default function App() {
                   }}
                   onDeleteMed={handleDeleteMedication}
                   onConsultMed={handleConsultMedication}
+                  onQuickRefill={handleQuickRefill}
                 />
               )}
 
